@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SC Salvage Calculator</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Star Citizen Salvage Calculator</h1>
+      <p class="subtitle">Calculate salvage profits from hull scraping &amp; structural salvage</p>
+    </header>
+
+    <main>
+      <!-- ─── Input Section ─── -->
+      <section class="input-section">
+        <div class="input-group">
+          <h2>Target Ship</h2>
+          <p class="help-text">The ship you are salvaging</p>
+          <div class="field">
+            <label for="target-ship">Ship</label>
+            <select id="target-ship"></select>
+          </div>
+          <div class="ship-info" id="target-info"></div>
+        </div>
+
+        <div class="input-group">
+          <h2>Your Salvage Setup</h2>
+          <p class="help-text">Your ship, head, and disintegration mode</p>
+          <div class="field">
+            <label for="salvage-ship">Salvage Ship</label>
+            <select id="salvage-ship"></select>
+          </div>
+          <div class="ship-info" id="salvage-info"></div>
+          <div class="field">
+            <label for="salvage-head">Salvage Head</label>
+            <select id="salvage-head"></select>
+          </div>
+          <div class="field">
+            <label for="disintegration-mode">Disintegration Mode</label>
+            <select id="disintegration-mode"></select>
+          </div>
+        </div>
+
+        <div class="input-group">
+          <h2>Refining</h2>
+          <p class="help-text">Refining method for construction materials</p>
+          <div class="field">
+            <label for="refine-toggle">Refine Construction Materials?</label>
+            <div class="toggle-wrapper">
+              <input type="checkbox" id="refine-toggle" checked>
+              <label for="refine-toggle" class="toggle-label">Yes</label>
+            </div>
+          </div>
+          <div id="refining-options">
+            <div class="field">
+              <label for="refining-method">Refining Method</label>
+              <select id="refining-method"></select>
+            </div>
+          </div>
+        </div>
+
+        <div class="input-group">
+          <h2>Sell Prices</h2>
+          <p class="help-text">Current aUEC per SCU — update to match in-game prices</p>
+          <div class="field">
+            <label for="price-rmc">RMC Price (per SCU)</label>
+            <input type="number" id="price-rmc" min="0" step="100">
+          </div>
+          <div class="field">
+            <label for="price-cm">Refined CM Price (per SCU)</label>
+            <input type="number" id="price-cm" min="0" step="100">
+          </div>
+          <div class="field">
+            <label for="price-cmr">Unrefined CMR Price (per SCU)</label>
+            <input type="number" id="price-cmr" min="0" step="10">
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── Results Section ─── -->
+      <section class="results-section" id="results">
+        <h2>Salvage Breakdown</h2>
+
+        <div id="warnings"></div>
+
+        <div class="result-grid">
+          <!-- RMC Results -->
+          <div class="result-card">
+            <h3>Hull Scraping (RMC)</h3>
+            <div class="result-row">
+              <span class="label">Base RMC from hull:</span>
+              <span class="value" id="res-base-rmc">—</span>
+            </div>
+            <div class="result-row">
+              <span class="label">After head efficiency:</span>
+              <span class="value" id="res-eff-rmc">—</span>
+            </div>
+            <div class="result-row">
+              <span class="label">Cargo limited to:</span>
+              <span class="value" id="res-cargo-rmc">—</span>
+            </div>
+            <div class="result-row total">
+              <span class="label">RMC Value:</span>
+              <span class="value" id="res-val-rmc">—</span>
+            </div>
+          </div>
+
+          <!-- CM Results -->
+          <div class="result-card">
+            <h3>Structural Salvage (CM)</h3>
+            <div class="result-row">
+              <span class="label">Base CMR from hull:</span>
+              <span class="value" id="res-base-cmr">—</span>
+            </div>
+            <div class="result-row">
+              <span class="label">After disintegration mode:</span>
+              <span class="value" id="res-disint-cmr">—</span>
+            </div>
+            <div class="result-row">
+              <span class="label">Remaining cargo for CM:</span>
+              <span class="value" id="res-cargo-cm">—</span>
+            </div>
+            <div class="result-row" id="refining-row">
+              <span class="label">After refining (<span id="res-refine-method">—</span>):</span>
+              <span class="value" id="res-refined-cm">—</span>
+            </div>
+            <div class="result-row total">
+              <span class="label">CM Value:</span>
+              <span class="value" id="res-val-cm">—</span>
+            </div>
+          </div>
+
+          <!-- Totals -->
+          <div class="result-card totals-card">
+            <h3>Total Profit</h3>
+            <div class="result-row">
+              <span class="label">RMC Income:</span>
+              <span class="value" id="res-income-rmc">—</span>
+            </div>
+            <div class="result-row">
+              <span class="label">CM Income:</span>
+              <span class="value" id="res-income-cm">—</span>
+            </div>
+            <div class="result-row">
+              <span class="label">Refining Cost:</span>
+              <span class="value" id="res-refine-cost">—</span>
+            </div>
+            <div class="result-row grand-total">
+              <span class="label">Net Profit:</span>
+              <span class="value" id="res-total">—</span>
+            </div>
+            <div class="result-row">
+              <span class="label">Trips needed (cargo limit):</span>
+              <span class="value" id="res-trips">—</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer>
+        <p>
+          Values are community-sourced estimates and may change between patches.
+          Update sell prices to match current in-game values.
+          Data reference: SC 4.6 (2026)
+        </p>
+      </footer>
+    </main>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
