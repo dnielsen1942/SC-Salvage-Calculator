@@ -26,9 +26,3 @@ Open `index.html` in any browser. No server or build step required.
 ## Data
 
 Values in `js/data.js` are community-sourced estimates referencing SC 4.6 (2026). They change between patches — update the data file as needed.
-
-### Price sources
-
-- [UEX Corp](https://uexcorp.space/) — live commodity prices
-- [Skull Scrapers](https://skullscrapers.org/salvagedata) — per-ship salvage yields
-- [CStone Finder](https://finder.cstone.space/ShipSalvageHeads) — salvage head stats
