@@ -37,6 +37,14 @@
     resRefineCost:     $("res-refine-cost"),
     resTotal:          $("res-total"),
     resTrips:          $("res-trips"),
+    // log
+    btnLog:            $("btn-log"),
+    btnExport:         $("btn-export"),
+    btnClearLog:       $("btn-clear-log"),
+    logSummary:        $("log-summary"),
+    logBody:           $("log-body"),
+    logEmpty:          $("log-empty"),
+    logTableWrap:      $("log-table-wrap"),
   };
 
   // ─── Helpers ───
@@ -58,6 +66,22 @@
     const targetIdx = sizeIndex(targetShip.size);
     return targetIdx <= maxIdx;
   }
+
+  // ─── Salvage Log Storage ───
+
+  const LOG_KEY = "salvageLog";
+
+  function loadLog() {
+    try {
+      return JSON.parse(localStorage.getItem(LOG_KEY)) || [];
+    } catch { return []; }
+  }
+
+  function saveLog(log) {
+    localStorage.setItem(LOG_KEY, JSON.stringify(log));
+  }
+
+  let salvageLog = loadLog();
 
   // ─── Populate dropdowns ───
 
@@ -123,9 +147,9 @@
       `Refine yield: ${(ship.refiningYield * 100).toFixed(0)}%`;
   }
 
-  // ─── Calculation ───
+  // ─── Calculation (pure) ───
 
-  function calculate() {
+  function getCalcResult() {
     const target = SALVAGE_DATA.targetShips[els.targetShip.value];
     const salvager = SALVAGE_DATA.salvageShips[els.salvageShip.value];
     const head = SALVAGE_DATA.salvageHeads[els.salvageHead.value];
@@ -137,9 +161,9 @@
     const priceCm = parseFloat(els.priceCm.value) || 0;
     const priceCmr = parseFloat(els.priceCmr.value) || 0;
 
-    if (!target || !salvager || !head || !disint) return;
+    if (!target || !salvager || !head || !disint) return null;
 
-    // ─── Warnings ───
+    // Warnings
     const warnings = [];
     const canFracture = canFractureTarget(salvager, target);
     if (!canFracture && salvager.canFracture) {
@@ -156,72 +180,60 @@
       });
     }
 
-    // ─── RMC Calculation ───
+    // RMC
     const baseRmc = target.rmc;
     const effRmc = baseRmc * head.efficiencyMod;
     const cargoForRmc = Math.min(effRmc, salvager.cargoSCU);
-
     const rmcValue = cargoForRmc * priceRmc;
 
-    // ─── CM Calculation ───
-    let baseCmr = target.cmr;
-    let cmrAfterDisint = baseCmr * disint.yieldMod;
-
-    // Cargo space remaining after RMC
+    // CM
+    const baseCmr = target.cmr;
+    const cmrAfterDisint = baseCmr * disint.yieldMod;
     const remainingCargo = Math.max(0, salvager.cargoSCU - cargoForRmc);
     let cmrLoaded = Math.min(cmrAfterDisint, remainingCargo);
 
     let refinedCm = 0;
     let cmValue = 0;
     let refiningCost = 0;
-
     const canGetCM = canFracture && salvager.canFracture;
 
     if (canGetCM) {
       if (doRefine) {
         refinedCm = cmrLoaded * salvager.refiningYield * refMethod.yieldMod;
-        // Refining cost: base cost proportional to SCU refined
-        const baseCostPerSCU = 150; // approximate base refining cost per SCU
+        const baseCostPerSCU = 150;
         refiningCost = cmrLoaded * baseCostPerSCU * refMethod.costMod;
         cmValue = refinedCm * priceCm;
       } else {
-        refinedCm = 0;
         cmValue = cmrLoaded * priceCmr;
-        refiningCost = 0;
       }
     } else {
       cmrLoaded = 0;
-      cmValue = 0;
     }
 
-    // ─── Total material from ship ───
+    // Trips
     const totalMaterialSCU = effRmc + (canGetCM ? cmrAfterDisint : 0);
     const trips = Math.ceil(totalMaterialSCU / salvager.cargoSCU);
 
-    // ─── Total profit (for ALL trips) ───
+    // Total profit (all trips)
     let totalRmcValue, totalCmValue, totalRefiningCost;
     if (trips <= 1) {
       totalRmcValue = rmcValue;
       totalCmValue = cmValue;
       totalRefiningCost = refiningCost;
     } else {
-      // Full ship values across all trips
-      const fullRmcValue = effRmc * priceRmc;
-      let fullCmValue = 0;
-      let fullRefiningCost = 0;
+      totalRmcValue = effRmc * priceRmc;
+      totalCmValue = 0;
+      totalRefiningCost = 0;
       if (canGetCM) {
         if (doRefine) {
           const fullRefined = cmrAfterDisint * salvager.refiningYield * refMethod.yieldMod;
           const baseCostPerSCU = 150;
-          fullRefiningCost = cmrAfterDisint * baseCostPerSCU * refMethod.costMod;
-          fullCmValue = fullRefined * priceCm;
+          totalRefiningCost = cmrAfterDisint * baseCostPerSCU * refMethod.costMod;
+          totalCmValue = fullRefined * priceCm;
         } else {
-          fullCmValue = cmrAfterDisint * priceCmr;
+          totalCmValue = cmrAfterDisint * priceCmr;
         }
       }
-      totalRmcValue = fullRmcValue;
-      totalCmValue = fullCmValue;
-      totalRefiningCost = fullRefiningCost;
     }
 
     const netProfit = totalRmcValue + totalCmValue - totalRefiningCost;
@@ -234,34 +246,49 @@
       });
     }
 
-    // ─── Update DOM ───
-    els.warnings.innerHTML = warnings
+    return {
+      target, salvager, head, disint, doRefine, refMethod,
+      priceRmc, priceCm, priceCmr,
+      baseRmc, effRmc, cargoForRmc, baseCmr, cmrAfterDisint,
+      remainingCargo, cmrLoaded, refinedCm, canGetCM,
+      totalRmcValue, totalCmValue, totalRefiningCost,
+      netProfit, trips, totalMaterialSCU, warnings,
+    };
+  }
+
+  // ─── Render calculation to DOM ───
+
+  function calculate() {
+    const r = getCalcResult();
+    if (!r) return;
+
+    els.warnings.innerHTML = r.warnings
       .map((w) => `<div class="warning ${w.type}">${w.text}</div>`)
       .join("");
 
-    els.resBaseRmc.textContent = scu(baseRmc);
-    els.resEffRmc.textContent = scu(effRmc);
-    els.resCargoRmc.textContent = scu(Math.min(effRmc, salvager.cargoSCU));
-    els.resValRmc.textContent = aUEC(totalRmcValue);
+    els.resBaseRmc.textContent = scu(r.baseRmc);
+    els.resEffRmc.textContent = scu(r.effRmc);
+    els.resCargoRmc.textContent = scu(Math.min(r.effRmc, r.salvager.cargoSCU));
+    els.resValRmc.textContent = aUEC(r.totalRmcValue);
 
-    if (canGetCM) {
-      els.resBaseCmr.textContent = scu(baseCmr);
-      els.resDisintCmr.textContent = scu(cmrAfterDisint);
-      els.resCargoCm.textContent = trips > 1
-        ? scu(cmrAfterDisint) + " (multi-trip)"
-        : scu(remainingCargo);
+    if (r.canGetCM) {
+      els.resBaseCmr.textContent = scu(r.baseCmr);
+      els.resDisintCmr.textContent = scu(r.cmrAfterDisint);
+      els.resCargoCm.textContent = r.trips > 1
+        ? scu(r.cmrAfterDisint) + " (multi-trip)"
+        : scu(r.remainingCargo);
 
-      if (doRefine) {
+      if (r.doRefine) {
         els.refiningRow.style.display = "";
         els.resRefineMethod.textContent = els.refiningMethod.value;
-        const totalRefined = trips > 1
-          ? cmrAfterDisint * salvager.refiningYield * refMethod.yieldMod
-          : refinedCm;
+        const totalRefined = r.trips > 1
+          ? r.cmrAfterDisint * r.salvager.refiningYield * r.refMethod.yieldMod
+          : r.refinedCm;
         els.resRefinedCm.textContent = scu(totalRefined);
       } else {
         els.refiningRow.style.display = "none";
       }
-      els.resValCm.textContent = aUEC(totalCmValue);
+      els.resValCm.textContent = aUEC(r.totalCmValue);
     } else {
       els.resBaseCmr.textContent = "N/A";
       els.resDisintCmr.textContent = "N/A";
@@ -270,11 +297,126 @@
       els.resValCm.textContent = "0 aUEC";
     }
 
-    els.resIncomeRmc.textContent = aUEC(totalRmcValue);
-    els.resIncomeCm.textContent = aUEC(totalCmValue);
-    els.resRefineCost.textContent = "−" + aUEC(totalRefiningCost);
-    els.resTotal.textContent = aUEC(netProfit);
-    els.resTrips.textContent = trips === 1 ? "1 (single load)" : `${trips} trips`;
+    els.resIncomeRmc.textContent = aUEC(r.totalRmcValue);
+    els.resIncomeCm.textContent = aUEC(r.totalCmValue);
+    els.resRefineCost.textContent = "−" + aUEC(r.totalRefiningCost);
+    els.resTotal.textContent = aUEC(r.netProfit);
+    els.resTrips.textContent = r.trips === 1 ? "1 (single load)" : `${r.trips} trips`;
+  }
+
+  // ─── Salvage Log ───
+
+  function addLogEntry() {
+    const r = getCalcResult();
+    if (!r) return;
+    const entry = {
+      id: Date.now(),
+      timestamp: new Date().toISOString(),
+      targetShip: els.targetShip.value,
+      targetSize: r.target.size,
+      salvageShip: els.salvageShip.value,
+      salvageHead: els.salvageHead.value,
+      disintMode: els.disintMode.value,
+      doRefine: r.doRefine,
+      refiningMethod: els.refiningMethod.value,
+      priceRmc: r.priceRmc,
+      priceCm: r.priceCm,
+      priceCmr: r.priceCmr,
+      rmcSCU: r.effRmc,
+      cmSCU: r.canGetCM ? r.cmrAfterDisint : 0,
+      rmcIncome: r.totalRmcValue,
+      cmIncome: r.totalCmValue,
+      refiningCost: r.totalRefiningCost,
+      netProfit: r.netProfit,
+      trips: r.trips,
+    };
+    salvageLog.unshift(entry);
+    saveLog(salvageLog);
+    renderLog();
+  }
+
+  function deleteLogEntry(id) {
+    salvageLog = salvageLog.filter(e => e.id !== id);
+    saveLog(salvageLog);
+    renderLog();
+  }
+
+  function clearLog() {
+    if (!confirm("Delete all logged salvage operations?")) return;
+    salvageLog = [];
+    saveLog(salvageLog);
+    renderLog();
+  }
+
+  function renderLog() {
+    const hasEntries = salvageLog.length > 0;
+    els.logEmpty.style.display = hasEntries ? "none" : "";
+    els.logTableWrap.style.display = hasEntries ? "" : "none";
+    els.btnExport.disabled = !hasEntries;
+    els.btnClearLog.disabled = !hasEntries;
+
+    if (hasEntries) {
+      const totalProfit = salvageLog.reduce((s, e) => s + e.netProfit, 0);
+      const totalRmcIncome = salvageLog.reduce((s, e) => s + e.rmcIncome, 0);
+      const totalCmIncome = salvageLog.reduce((s, e) => s + e.cmIncome, 0);
+      const count = salvageLog.length;
+      els.logSummary.innerHTML =
+        `<span><strong>${count}</strong> op${count !== 1 ? "s" : ""}</span>` +
+        `<span>RMC: <strong class="sum-rmc">${aUEC(totalRmcIncome)}</strong></span>` +
+        `<span>CM: <strong class="sum-cm">${aUEC(totalCmIncome)}</strong></span>` +
+        `<span>Net: <strong class="sum-net">${aUEC(totalProfit)}</strong></span>` +
+        `<span>Avg: <strong class="sum-avg">${aUEC(totalProfit / count)}</strong></span>`;
+    } else {
+      els.logSummary.innerHTML = "";
+    }
+
+    els.logBody.innerHTML = salvageLog.map(e => {
+      const d = new Date(e.timestamp);
+      const dateStr = d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) +
+        " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const refineInfo = e.doRefine ? e.refiningMethod : "Unrefined";
+      const setupTitle = `Ship: ${e.salvageShip}\nHead: ${e.salvageHead}\nDisint: ${e.disintMode}\nRefine: ${refineInfo}\nRMC price: ${e.priceRmc}/SCU\nCM price: ${e.priceCm}/SCU`;
+      return `<tr>
+        <td class="log-date">${dateStr}</td>
+        <td>${e.targetShip} <span class="log-size">${e.targetSize}</span></td>
+        <td title="${setupTitle}">${e.salvageShip}</td>
+        <td>${e.rmcSCU.toFixed(1)}</td>
+        <td>${e.cmSCU.toFixed(1)}</td>
+        <td class="log-profit">${aUEC(e.netProfit)}</td>
+        <td>${e.trips}</td>
+        <td><button class="btn-delete" data-id="${e.id}" title="Delete">&times;</button></td>
+      </tr>`;
+    }).join("");
+  }
+
+  function exportCSV() {
+    if (!salvageLog.length) return;
+    const headers = [
+      "Date", "Target Ship", "Target Size", "Salvage Ship", "Salvage Head",
+      "Disint Mode", "Refine", "Refining Method", "RMC Price/SCU", "CM Price/SCU",
+      "CMR Price/SCU", "RMC SCU", "CM SCU", "RMC Income", "CM Income",
+      "Refining Cost", "Net Profit", "Trips"
+    ];
+    const rows = salvageLog.map(e => [
+      new Date(e.timestamp).toLocaleString(),
+      e.targetShip, e.targetSize, e.salvageShip, e.salvageHead, e.disintMode,
+      e.doRefine ? "Yes" : "No", e.refiningMethod,
+      e.priceRmc, e.priceCm, e.priceCmr,
+      e.rmcSCU.toFixed(1), e.cmSCU.toFixed(1),
+      Math.round(e.rmcIncome), Math.round(e.cmIncome),
+      Math.round(e.refiningCost), Math.round(e.netProfit), e.trips
+    ]);
+    const csv = [headers, ...rows].map(r =>
+      r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")
+    ).join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `salvage-log-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   // ─── Event listeners ───
@@ -298,6 +440,15 @@
       els.refiningOptions.style.display = els.refineToggle.checked ? "" : "none";
       calculate();
     });
+
+    // Log controls
+    els.btnLog.addEventListener("click", addLogEntry);
+    els.btnClearLog.addEventListener("click", clearLog);
+    els.btnExport.addEventListener("click", exportCSV);
+    els.logBody.addEventListener("click", (e) => {
+      const btn = e.target.closest(".btn-delete");
+      if (btn) deleteLogEntry(Number(btn.dataset.id));
+    });
   }
 
   // ─── Init ───
@@ -314,6 +465,7 @@
     updateTargetInfo();
     updateSalvageInfo();
     calculate();
+    renderLog();
   }
 
   document.addEventListener("DOMContentLoaded", init);
