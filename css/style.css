@@ -295,6 +295,189 @@ input[type="checkbox"]:checked::before {
   color: var(--red);
 }
 
+/* ─── Buttons ─── */
+
+.btn {
+  padding: 0.5rem 1.25rem;
+  border: none;
+  border-radius: var(--radius);
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.btn:hover {
+  opacity: 0.85;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.btn-accent {
+  background: var(--accent);
+  color: var(--bg-dark);
+  font-weight: 600;
+}
+
+.btn-small {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.75rem;
+}
+
+.btn-small:not(.btn-danger) {
+  background: var(--bg-input);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+}
+
+.btn-danger {
+  background: transparent;
+  color: var(--red);
+  border: 1px solid rgba(248, 113, 113, 0.4);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.1);
+}
+
+/* ─── Log Actions ─── */
+
+.log-actions {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+/* ─── Salvage Log ─── */
+
+.log-section {
+  margin-bottom: 2rem;
+}
+
+.log-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.log-header h2 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin: 0;
+}
+
+.log-summary {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  flex: 1;
+}
+
+.log-summary .sum-net { color: var(--green); }
+.log-summary .sum-avg { color: var(--accent); }
+.log-summary .sum-rmc,
+.log-summary .sum-cm { color: var(--text); }
+
+.log-toolbar {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.log-empty {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.log-table-wrap {
+  overflow-x: auto;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.log-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.log-table th {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  text-align: left;
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.log-table td {
+  font-size: 0.8rem;
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid rgba(42, 54, 84, 0.5);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.log-table tr:last-child td {
+  border-bottom: none;
+}
+
+.log-table tr:hover td {
+  background: rgba(56, 189, 248, 0.03);
+}
+
+.log-date {
+  color: var(--text-dim);
+  font-size: 0.75rem;
+}
+
+.log-size {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  background: var(--bg-input);
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  margin-left: 0.3rem;
+  vertical-align: middle;
+}
+
+.log-profit {
+  color: var(--green);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.btn-delete {
+  background: none;
+  border: none;
+  color: var(--red);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  line-height: 1;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+
+.btn-delete:hover {
+  opacity: 1;
+  background: rgba(248, 113, 113, 0.1);
+}
+
 /* ─── Footer ─── */
 
 footer {
@@ -324,5 +507,16 @@ footer p {
 
   header h1 {
     font-size: 1.35rem;
+  }
+
+  .log-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .log-summary {
+    flex-wrap: wrap;
+    gap: 0.5rem;
   }
 }
